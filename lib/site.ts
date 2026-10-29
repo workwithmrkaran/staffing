@@ -13,6 +13,9 @@ export const SITE = {
   linkedinUrl: 'https://linkedin.com/in/poojakh',
 } as const
 
+/** Home page sections with their own clean address (/about, /contact …). Keep in sync with next.config.mjs. */
+export const SECTION_PATHS = ['about', 'services', 'industries', 'methodology', 'leadership', 'contact'] as const
+
 /** Unsplash CDN image (free Unsplash licence). Swap for your own photos any time. */
 export function unsplash(id: string, width: number, height?: number): string {
   const size = height ? `&h=${height}&fit=crop` : ''
@@ -53,7 +56,7 @@ export const HERO_SLIDES: readonly HeroSlide[] = [
       eyebrow: 'For professionals',
       title: 'Career moves, guided by people who listen.',
       text: 'We match your goals and timing with the right opportunity.',
-      cta: { label: 'Send your profile', href: '#contact' },
+      cta: { label: 'Send your profile', href: '/contact' },
     },
   },
   {
@@ -65,7 +68,7 @@ export const HERO_SLIDES: readonly HeroSlide[] = [
       eyebrow: 'For employers',
       title: 'Teams that perform from day one.',
       text: 'Mid-level and leadership hires, assessed for skills and culture fit.',
-      cta: { label: 'Share a requirement', href: '#contact' },
+      cta: { label: 'Share a requirement', href: '/contact' },
     },
   },
 ]

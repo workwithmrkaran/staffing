@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { DM_Sans, Space_Grotesk } from 'next/font/google'
 import type { Metadata, Viewport } from 'next'
 import { Toaster } from 'sonner'
+import { CleanAnchorLinks } from '@/components/clean-anchor-links'
 import { SITE } from '@/lib/site'
 import './globals.css'
 
@@ -46,6 +47,7 @@ export default function RootLayout({
       <body className={`${dmSans.variable} ${spaceGrotesk.variable} antialiased`}>
         {children}
         <Toaster position="top-center" richColors closeButton />
+        <CleanAnchorLinks />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
