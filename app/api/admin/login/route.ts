@@ -24,7 +24,9 @@ export async function POST(request: Request) {
     const store = await cookies()
     store.set(SESSION_COOKIE, createSessionToken(), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      // HTTPS-only in production. ADMIN_COOKIE_SECURE=false allows plain-HTTP testing (e.g. http://SERVER-IP:PORT)
+      // before the domain and SSL are set up. Remove it once the site is on HTTPS.
+      secure: process.env.NODE_ENV === 'production' && process.env.ADMIN_COOKIE_SECURE !== 'false',
       sameSite: 'strict',
       path: '/',
       maxAge: SESSION_MAX_AGE,
