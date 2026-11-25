@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import {
-  CANDIDATE_STATUSES, EMPLOYER_STATUSES, EXPERIENCE_OPTIONS, NOTICE_PERIODS,
+  CANDIDATE_STATUSES, EMPLOYER_STATUSES, EXPERIENCE_OPTIONS, LEVELS, NOTICE_PERIODS,
   PASSPORT_OPTIONS, RELOCATION_OPTIONS, SECTORS, URGENCIES,
 } from './types'
 
@@ -22,6 +22,25 @@ const optionalText = (max: number) =>
     .optional()
     .transform((v) => (v ? v : null))
 
+/** CTC in lakh per annum, e.g. "8" or "12.5". Empty is allowed only when `required` is false. */
+const ctc = (label: string, required: boolean) =>
+  z
+    .string()
+    .trim()
+    .optional()
+    .transform((v, ctx) => {
+      if (!v) {
+        if (required) ctx.addIssue({ code: 'custom', message: `${label} is required` })
+        return null
+      }
+      const n = Number(v)
+      if (!/^\d{1,4}(\.\d{1,2})?$/.test(v) || !Number.isFinite(n) || n > 9999) {
+        ctx.addIssue({ code: 'custom', message: `Enter ${label} in lakh per annum, e.g. 8 or 12.5` })
+        return z.NEVER
+      }
+      return n
+    })
+
 export const employerSchema = z.object({
   company_name: text('Company name'),
   contact_person: text('Contact person'),
@@ -31,6 +50,13 @@ export const employerSchema = z.object({
   sector: z.enum(SECTORS, { error: 'Select a hiring sector' }),
   target_location: text('Target location'),
   urgency: z.enum(URGENCIES, { error: 'Select an urgency' }),
+  openings: z
+    .string({ error: 'Number of openings is required' })
+    .trim()
+    .regex(/^\d{1,4}$/, 'Enter the number of openings')
+    .transform(Number)
+    .refine((n) => n >= 1, 'Enter at least 1 opening'),
+  level: z.enum(LEVELS, { error: 'Select a level' }),
   notes: optionalText(2000),
 })
 
@@ -43,6 +69,8 @@ export const candidateSchema = z.object({
   notice_period: z.enum(NOTICE_PERIODS, { error: 'Select your notice period' }),
   relocation_preference: z.enum(RELOCATION_OPTIONS, { error: 'Select a relocation preference' }),
   passport_status: z.enum(PASSPORT_OPTIONS, { error: 'Select your passport status' }),
+  current_ctc_lpa: ctc('Current CTC', false),
+  expected_ctc_lpa: ctc('Expected CTC', true),
   linkedin_url: z
     .string()
     .trim()

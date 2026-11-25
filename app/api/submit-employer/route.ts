@@ -24,9 +24,11 @@ export async function POST(request: Request) {
       const fileId = file ? await insertFile(client, file) : null
       await client.query(
         `insert into employer_requirements
-           (company_name, contact_person, email, phone, role_title, sector, target_location, urgency, notes, jd_file_id)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [d.company_name, d.contact_person, d.email, d.phone, d.role_title, d.sector, d.target_location, d.urgency, d.notes, fileId],
+           (company_name, contact_person, email, phone, role_title, sector, target_location, urgency, notes, jd_file_id,
+            openings, level)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [d.company_name, d.contact_person, d.email, d.phone, d.role_title, d.sector, d.target_location, d.urgency, d.notes, fileId,
+          d.openings, d.level],
       )
     })
 

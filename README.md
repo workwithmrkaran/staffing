@@ -13,10 +13,12 @@ All data, including uploaded resumes and JDs, is stored in PostgreSQL.
    -- on PostgreSQL 15+ also run, while connected to a3a_staffing:
    grant all on schema public to a3a_app;
    ```
-2. Create the tables:
+2. Tables are created automatically: on every start the app applies any pending migrations from
+   `db/migrate.mjs` (tracked in the `schema_migrations` table). To run them by hand:
    ```bash
-   psql "postgres://a3a_app:PASSWORD@localhost:5432/a3a_staffing" -f db/schema.sql
+   node --env-file=.env.local db/migrate.mjs
    ```
+   The app's database user must own the tables (it does if the app created them).
 3. Copy `.env.example` to `.env.local` and set `DATABASE_URL`, `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET`.
    For a hosted database that requires TLS, set `DATABASE_SSL=true`.
 4. `pnpm install` then `pnpm dev`, and open http://localhost:3000 and http://localhost:3000/admin.
@@ -25,7 +27,7 @@ All data, including uploaded resumes and JDs, is stored in PostgreSQL.
 
 | Piece | Location |
 | --- | --- |
-| Schema | `db/schema.sql` (`employer_requirements`, `candidate_applications`, `uploaded_files`) |
+| Schema | `db/migrate.mjs` (migrations, run on startup by `instrumentation.ts`); `db/schema.sql` is the current schema for reference |
 | DB connection | `lib/db.ts` (pooled `pg` client, transactions) |
 | Public forms | `components/enquiry-hub.tsx` |
 | Submission APIs | `app/api/submit-employer`, `app/api/submit-candidate` (multipart, zod validation, PDF/DOCX content check, 10MB max, honeypot) |

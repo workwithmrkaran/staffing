@@ -27,10 +27,12 @@ export async function POST(request: Request) {
       await client.query(
         `insert into candidate_applications
            (full_name, email, phone, target_role, experience_years, notice_period,
-            relocation_preference, passport_status, linkedin_url, resume_file_id)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            relocation_preference, passport_status, linkedin_url, resume_file_id,
+            current_ctc_lpa, expected_ctc_lpa)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [d.full_name, d.email, d.phone, d.target_role, d.experience_years, d.notice_period,
-          d.relocation_preference, d.passport_status, d.linkedin_url, fileId],
+          d.relocation_preference, d.passport_status, d.linkedin_url, fileId,
+          d.current_ctc_lpa, d.expected_ctc_lpa],
       )
     })
 

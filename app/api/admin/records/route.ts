@@ -12,9 +12,9 @@ export const dynamic = 'force-dynamic'
 const TABLES = { candidate: 'candidate_applications', employer: 'employer_requirements' } as const
 
 const CANDIDATE_COLUMNS = `id, created_at, full_name, email, phone, target_role, experience_years, notice_period,
-  relocation_preference, passport_status, linkedin_url, resume_file_id, admin_notes, status`
+  relocation_preference, passport_status, current_ctc_lpa, expected_ctc_lpa, linkedin_url, resume_file_id, admin_notes, status`
 const EMPLOYER_COLUMNS = `id, created_at, company_name, contact_person, email, phone, role_title, sector,
-  target_location, urgency, jd_file_id, notes, admin_notes, status`
+  target_location, urgency, openings, level, jd_file_id, notes, admin_notes, status`
 
 export async function GET() {
   if (!(await isAdmin())) return fail('Unauthorized', 401)

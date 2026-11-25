@@ -3,9 +3,12 @@
 export const SECTORS = ['IT', 'Non-IT', 'Leadership'] as const
 export const URGENCIES = ['Immediate', '15-30 Days', 'Pipeline'] as const
 export const EMPLOYER_STATUSES = ['New', 'Contacted', 'In Progress', 'Filled', 'Archived'] as const
+export const LEVELS = ['Entry', 'Mid', 'Senior'] as const
 
 export const EXPERIENCE_OPTIONS = ['0-2 years', '3-5 years', '6-9 years', '10+ years'] as const
 export const NOTICE_PERIODS = ['Immediate', '15 Days', '30 Days', '60+ Days'] as const
+/** Notice periods that let a candidate join within a month (used by the admin filter). */
+export const NOTICE_WITHIN_MONTH: readonly string[] = ['Immediate', '15 Days', '30 Days']
 export const RELOCATION_OPTIONS = ['Open to relocate', 'Current city only', 'Open to remote / hybrid', 'Open to international'] as const
 export const PASSPORT_OPTIONS = ['Valid passport', 'Applied / in process', 'No passport'] as const
 export const CANDIDATE_STATUSES = ['Pending', 'Reviewed', 'Shortlisted', 'Interviewing', 'Rejected'] as const
@@ -14,6 +17,7 @@ export type Sector = (typeof SECTORS)[number]
 export type Urgency = (typeof URGENCIES)[number]
 export type EmployerStatus = (typeof EMPLOYER_STATUSES)[number]
 export type CandidateStatus = (typeof CANDIDATE_STATUSES)[number]
+export type Level = (typeof LEVELS)[number]
 
 export interface EmployerRequirement {
   id: string
@@ -26,6 +30,9 @@ export interface EmployerRequirement {
   sector: Sector
   target_location: string
   urgency: Urgency
+  /** Number of open positions. Null for requirements submitted before this field existed. */
+  openings: number | null
+  level: Level | null
   jd_file_id: string | null
   /** Attached file name and MIME type (included in admin listings). */
   file_name?: string | null
@@ -46,6 +53,9 @@ export interface CandidateApplication {
   notice_period: string
   relocation_preference: string
   passport_status: string
+  /** CTC in lakh per annum (LPA). Null for older records; current CTC is optional (freshers). */
+  current_ctc_lpa: number | null
+  expected_ctc_lpa: number | null
   linkedin_url: string | null
   resume_file_id: string
   /** Attached file name and MIME type (included in admin listings). */

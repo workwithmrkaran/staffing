@@ -1,22 +1,19 @@
 import 'server-only'
 import { Pool, types, type PoolClient } from 'pg'
+import { connectionConfig } from '@/db/migrate.mjs'
 
 // Return timestamptz columns as ISO strings instead of Date objects,
 // so rows match the string types the UI expects.
 types.setTypeParser(types.builtins.TIMESTAMPTZ, (value) => new Date(value).toISOString())
+// numeric columns (CTC in lakh per annum) as numbers instead of strings.
+types.setTypeParser(types.builtins.NUMERIC, (value) => Number(value))
 
 const globalForDb = globalThis as unknown as { a3aPool?: Pool }
 
 /** Shared connection pool (reused across hot reloads in development). */
 export function getPool(): Pool {
   if (globalForDb.a3aPool) return globalForDb.a3aPool
-  const connectionString = process.env.DATABASE_URL
-  if (!connectionString) throw new Error('DATABASE_URL is not set.')
-  const pool = new Pool({
-    connectionString,
-    max: Number(process.env.DATABASE_POOL_MAX ?? 5),
-    ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false' } : undefined,
-  })
+  const pool = new Pool({ ...connectionConfig(), max: Number(process.env.DATABASE_POOL_MAX ?? 5) })
   pool.on('error', (error) => console.error('[db] idle client error', error))
   globalForDb.a3aPool = pool
   return pool

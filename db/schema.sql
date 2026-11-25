@@ -1,6 +1,6 @@
 -- A3A Staffing Solutions — PostgreSQL schema (PostgreSQL 13+)
--- Apply with:  psql "$DATABASE_URL" -f db/schema.sql
--- Safe to re-run: every statement is idempotent.
+-- REFERENCE ONLY: the app creates and updates these tables itself on startup (db/migrate.mjs).
+-- Change the schema by adding a migration there, then mirror it here.
 
 -- ─────────────────────────────────────────────────────────────
 -- Uploaded files (JDs and resumes), stored in the database itself.
@@ -31,6 +31,8 @@ create table if not exists employer_requirements (
   sector          text not null check (sector in ('IT', 'Non-IT', 'Leadership')),
   target_location text not null,
   urgency         text not null check (urgency in ('Immediate', '15-30 Days', 'Pipeline')),
+  openings        integer check (openings between 1 and 9999),           -- migration 2
+  level           text check (level in ('Entry', 'Mid', 'Senior')),      -- migration 2
   jd_file_id      uuid references uploaded_files(id) on delete set null,
   notes           text,
   admin_notes     text,
@@ -55,6 +57,8 @@ create table if not exists candidate_applications (
   notice_period         text not null,
   relocation_preference text not null,
   passport_status       text not null,
+  current_ctc_lpa       numeric(6,2) check (current_ctc_lpa >= 0 and current_ctc_lpa <= 9999),   -- migration 2, lakh per annum
+  expected_ctc_lpa      numeric(6,2) check (expected_ctc_lpa >= 0 and expected_ctc_lpa <= 9999), -- migration 2, lakh per annum
   linkedin_url          text,
   resume_file_id        uuid not null references uploaded_files(id),
   admin_notes           text,

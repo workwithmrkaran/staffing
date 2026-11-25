@@ -4,7 +4,7 @@ import { useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } fr
 import { ArrowRight, Check, FileText, Loader2, Mail, Phone, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  EXPERIENCE_OPTIONS, MAX_UPLOAD_BYTES, NOTICE_PERIODS, PASSPORT_OPTIONS,
+  EXPERIENCE_OPTIONS, LEVELS, MAX_UPLOAD_BYTES, NOTICE_PERIODS, PASSPORT_OPTIONS,
   RELOCATION_OPTIONS, SECTORS, URGENCIES, type ApiResult,
 } from '@/lib/types'
 import { PHOTOS, unsplash } from '@/lib/site'
@@ -14,10 +14,16 @@ type Tab = 'employer' | 'seeker'
 interface FieldDef {
   name: string
   label: string
-  type: 'text' | 'email' | 'tel' | 'url'
+  type: 'text' | 'email' | 'tel' | 'url' | 'number'
   required?: boolean
+  /** Shows "(optional)" next to the label. */
+  optional?: boolean
   placeholder?: string
   autoComplete?: string
+  /** For number fields. */
+  min?: number
+  max?: number
+  step?: number | 'any'
 }
 
 interface SelectDef {
@@ -55,10 +61,12 @@ const FORMS: Record<Tab, {
       { name: 'phone', label: 'Phone Number', type: 'tel', required: true, autoComplete: 'tel' },
       { name: 'role_title', label: 'Position / Role Title Needed', type: 'text', required: true },
       { name: 'target_location', label: 'Target Location', type: 'text', required: true },
+      { name: 'openings', label: 'No. of Openings', type: 'number', required: true, min: 1, max: 9999, step: 1, placeholder: 'e.g. 3' },
     ],
     selects: [
       { name: 'sector', label: 'Hiring Sector', options: SECTORS },
       { name: 'urgency', label: 'Urgency', options: URGENCIES },
+      { name: 'level', label: 'Level', options: LEVELS },
     ],
     submitLabel: 'Submit Hiring Requirement',
   },
@@ -74,6 +82,8 @@ const FORMS: Record<Tab, {
       { name: 'email', label: 'Email', type: 'email', required: true, autoComplete: 'email' },
       { name: 'phone', label: 'Phone', type: 'tel', required: true, autoComplete: 'tel' },
       { name: 'target_role', label: 'Target Role', type: 'text', required: true },
+      { name: 'current_ctc_lpa', label: 'Current CTC (₹ LPA)', type: 'number', optional: true, min: 0, max: 9999, step: 0.01, placeholder: 'e.g. 8.5 (leave blank if fresher)' },
+      { name: 'expected_ctc_lpa', label: 'Expected CTC (₹ LPA)', type: 'number', required: true, min: 0, max: 9999, step: 0.01, placeholder: 'e.g. 12' },
     ],
     selects: [
       { name: 'experience_years', label: 'Total Years of Experience', options: EXPERIENCE_OPTIONS },
@@ -180,7 +190,7 @@ export function EnquiryHub() {
     <form key={tab} onSubmit={submit} className="grid gap-4 sm:grid-cols-2" aria-busy={submitting}>
       <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
       <fieldset disabled={submitting} className="contents">
-        {config.fields.map((field) => <label key={field.name} className={labelClass}>{field.label}<input name={field.name} required={field.required} type={field.type} autoComplete={field.autoComplete} placeholder={field.placeholder} maxLength={200} className={inputClass} /></label>)}
+        {config.fields.map((field) => <label key={field.name} className={labelClass}>{field.label}{field.optional && <span className="font-normal text-slate-400"> (optional)</span>}<input name={field.name} required={field.required} type={field.type} inputMode={field.type === 'number' ? (field.step === 1 ? 'numeric' : 'decimal') : undefined} min={field.min} max={field.max} step={field.step} autoComplete={field.autoComplete} placeholder={field.placeholder} maxLength={field.type === 'number' ? undefined : 200} className={inputClass} /></label>)}
         {config.selects.map((select) => <label key={select.name} className={labelClass}>{select.label}<select name={select.name} required defaultValue="" className={selectClass}><option value="">Select one</option>{select.options.map((x) => <option key={x}>{x}</option>)}</select></label>)}
         {tab === 'seeker' && <label className={`${labelClass} sm:col-span-2`}>LinkedIn Profile URL <span className="font-normal text-slate-400">(optional)</span><input name="linkedin_url" type="url" placeholder="https://linkedin.com/in/your-profile" maxLength={300} className={inputClass} /></label>}
         {tab === 'employer' && <label className={`${labelClass} sm:col-span-2`}>Additional Notes <span className="font-normal text-slate-400">(optional)</span><textarea name="notes" rows={3} maxLength={2000} placeholder="Team size, budget range, must-have skills…" className={`${inputClass} resize-y`} /></label>}

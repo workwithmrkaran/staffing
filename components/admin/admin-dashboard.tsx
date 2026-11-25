@@ -10,7 +10,7 @@ import {
 import { toast } from 'sonner'
 import { downloadCsv, toCsv } from '@/lib/csv'
 import {
-  CANDIDATE_STATUSES, EMPLOYER_STATUSES, EXPERIENCE_OPTIONS, SECTORS,
+  CANDIDATE_STATUSES, EMPLOYER_STATUSES, EXPERIENCE_OPTIONS, LEVELS, NOTICE_PERIODS, NOTICE_WITHIN_MONTH, SECTORS,
   type ApiResult, type CandidateApplication, type CandidateStatus, type EmployerRequirement,
   type EmployerStatus, type RecordKind,
 } from '@/lib/types'
@@ -46,6 +46,13 @@ const STATUS_STYLES: Record<CandidateStatus | EmployerStatus, string> = {
 const dateFormat = new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 const dateTimeFormat = new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
+/** 12.5 -> "₹12.5 L"; null -> "—" */
+function formatCtc(value: number | null | undefined): string {
+  return value === null || value === undefined ? '—' : `₹${value} L`
+}
+
+const NOTICE_FILTER_WITHIN_MONTH = 'Within a month'
+
 function fileHref(kind: RecordKind, id: string): string {
   return `/api/admin/file?kind=${kind}&id=${id}`
 }
@@ -72,7 +79,9 @@ const CANDIDATE_CSV: { key: keyof CandidateApplication & string; header: string 
   { key: 'email', header: 'Email' }, { key: 'phone', header: 'Phone' },
   { key: 'target_role', header: 'Target Role' }, { key: 'experience_years', header: 'Experience' },
   { key: 'notice_period', header: 'Notice Period' }, { key: 'relocation_preference', header: 'Relocation' },
-  { key: 'passport_status', header: 'Passport' }, { key: 'linkedin_url', header: 'LinkedIn' },
+  { key: 'passport_status', header: 'Passport' },
+  { key: 'current_ctc_lpa', header: 'Current CTC (LPA)' }, { key: 'expected_ctc_lpa', header: 'Expected CTC (LPA)' },
+  { key: 'linkedin_url', header: 'LinkedIn' },
   { key: 'status', header: 'Status' }, { key: 'admin_notes', header: 'Admin Notes' }, { key: 'id', header: 'ID' },
 ]
 
@@ -81,7 +90,8 @@ const EMPLOYER_CSV: { key: keyof EmployerRequirement & string; header: string }[
   { key: 'contact_person', header: 'Contact Person' }, { key: 'email', header: 'Email' },
   { key: 'phone', header: 'Phone' }, { key: 'role_title', header: 'Role Title' },
   { key: 'sector', header: 'Sector' }, { key: 'target_location', header: 'Location' },
-  { key: 'urgency', header: 'Urgency' }, { key: 'notes', header: 'Employer Notes' },
+  { key: 'urgency', header: 'Urgency' }, { key: 'openings', header: 'Openings' }, { key: 'level', header: 'Level' },
+  { key: 'notes', header: 'Employer Notes' },
   { key: 'status', header: 'Status' }, { key: 'admin_notes', header: 'Admin Notes' }, { key: 'id', header: 'ID' },
 ]
 
@@ -417,6 +427,8 @@ function DetailDrawer({ selected, onClose, onUpdate, onOpenFile }: {
                 <DetailRow label="Target role">{selected.record.target_role}</DetailRow>
                 <DetailRow label="Experience">{selected.record.experience_years}</DetailRow>
                 <DetailRow label="Notice period">{selected.record.notice_period}</DetailRow>
+                <DetailRow label="Current CTC">{selected.record.current_ctc_lpa === null ? null : `${formatCtc(selected.record.current_ctc_lpa)} per annum`}</DetailRow>
+                <DetailRow label="Expected CTC">{selected.record.expected_ctc_lpa === null ? null : `${formatCtc(selected.record.expected_ctc_lpa)} per annum`}</DetailRow>
                 <DetailRow label="Relocation">{selected.record.relocation_preference}</DetailRow>
                 <DetailRow label="Passport">{selected.record.passport_status}</DetailRow>
                 <DetailRow label="LinkedIn">{selected.record.linkedin_url}</DetailRow>
@@ -425,6 +437,8 @@ function DetailDrawer({ selected, onClose, onUpdate, onOpenFile }: {
               <>
                 <DetailRow label="Contact person">{selected.record.contact_person}</DetailRow>
                 <DetailRow label="Role title">{selected.record.role_title}</DetailRow>
+                <DetailRow label="Openings">{selected.record.openings}</DetailRow>
+                <DetailRow label="Level">{selected.record.level}</DetailRow>
                 <DetailRow label="Sector">{selected.record.sector}</DetailRow>
                 <DetailRow label="Location">{selected.record.target_location}</DetailRow>
                 <DetailRow label="Urgency">{selected.record.urgency}</DetailRow>
@@ -481,6 +495,10 @@ export function AdminDashboard() {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [secondaryFilter, setSecondaryFilter] = useState('')
+  const [noticeFilter, setNoticeFilter] = useState('')
+  const [levelFilter, setLevelFilter] = useState('')
+  const [ctcMin, setCtcMin] = useState('')
+  const [ctcMax, setCtcMax] = useState('')
   const [selectedRef, setSelectedRef] = useState<{ kind: RecordKind; id: string } | null>(null)
   const [fileChoice, setFileChoice] = useState<FileTarget | null>(null)
   const [fileViewer, setFileViewer] = useState<FileTarget | null>(null)
@@ -549,22 +567,40 @@ export function AdminDashboard() {
 
   const switchTab = (next: RecordKind) => {
     setTab(next)
-    setStatusFilter('')
-    setSecondaryFilter('')
+    clearFilters()
   }
 
+  function clearFilters() {
+    setStatusFilter('')
+    setSecondaryFilter('')
+    setNoticeFilter('')
+    setLevelFilter('')
+    setCtcMin('')
+    setCtcMax('')
+  }
+  const filtersActive = Boolean(statusFilter || secondaryFilter || noticeFilter || levelFilter || ctcMin || ctcMax)
+
   const q = query.trim().toLowerCase()
-  const filteredCandidates = useMemo(() => candidates.filter((c) =>
-    (!statusFilter || c.status === statusFilter) &&
-    (!secondaryFilter || c.experience_years === secondaryFilter) &&
-    (!q || [c.full_name, c.email, c.phone, c.target_role].some((v) => v.toLowerCase().includes(q))),
-  ), [candidates, statusFilter, secondaryFilter, q])
+  const filteredCandidates = useMemo(() => {
+    const min = ctcMin.trim() === '' ? null : Number(ctcMin)
+    const max = ctcMax.trim() === '' ? null : Number(ctcMax)
+    return candidates.filter((c) =>
+      (!statusFilter || c.status === statusFilter) &&
+      (!secondaryFilter || c.experience_years === secondaryFilter) &&
+      (!noticeFilter || (noticeFilter === NOTICE_FILTER_WITHIN_MONTH ? NOTICE_WITHIN_MONTH.includes(c.notice_period) : c.notice_period === noticeFilter)) &&
+      // A CTC range only matches candidates who gave an expected CTC.
+      (min === null || (c.expected_ctc_lpa !== null && c.expected_ctc_lpa >= min)) &&
+      (max === null || (c.expected_ctc_lpa !== null && c.expected_ctc_lpa <= max)) &&
+      (!q || [c.full_name, c.email, c.phone, c.target_role].some((v) => v.toLowerCase().includes(q))),
+    )
+  }, [candidates, statusFilter, secondaryFilter, noticeFilter, ctcMin, ctcMax, q])
 
   const filteredEmployers = useMemo(() => employers.filter((e) =>
     (!statusFilter || e.status === statusFilter) &&
     (!secondaryFilter || e.sector === secondaryFilter) &&
+    (!levelFilter || e.level === levelFilter) &&
     (!q || [e.company_name, e.contact_person, e.email, e.phone, e.role_title, e.target_location].some((v) => v.toLowerCase().includes(q))),
-  ), [employers, statusFilter, secondaryFilter, q])
+  ), [employers, statusFilter, secondaryFilter, levelFilter, q])
 
   const kpis = useMemo(() => ({
     totalApplications: candidates.length,
@@ -585,9 +621,10 @@ export function AdminDashboard() {
 
   const exportCsv = () => {
     const stamp = new Date().toISOString().slice(0, 10)
-    if (tab === 'candidate') downloadCsv(`a3a-candidates-${stamp}.csv`, toCsv(candidates, CANDIDATE_CSV))
-    else downloadCsv(`a3a-employer-requirements-${stamp}.csv`, toCsv(employers, EMPLOYER_CSV))
-    toast.success(`Exported ${tab === 'candidate' ? candidates.length : employers.length} records`)
+    // Exports the rows currently shown, so filters (e.g. notice within a month) carry into the file.
+    if (tab === 'candidate') downloadCsv(`a3a-candidates-${stamp}.csv`, toCsv(filteredCandidates, CANDIDATE_CSV))
+    else downloadCsv(`a3a-employer-requirements-${stamp}.csv`, toCsv(filteredEmployers, EMPLOYER_CSV))
+    toast.success(`Exported ${tab === 'candidate' ? filteredCandidates.length : filteredEmployers.length} records`)
   }
 
   const closeDrawer = useCallback(() => setSelectedRef(null), [])
@@ -597,6 +634,7 @@ export function AdminDashboard() {
     { header: 'Target role', cell: (c) => <span className="text-slate-700">{c.target_role}</span> },
     { header: 'Experience', cell: (c) => c.experience_years, className: 'whitespace-nowrap' },
     { header: 'Notice', cell: (c) => c.notice_period, className: 'whitespace-nowrap' },
+    { header: 'CTC (cur → exp)', cell: (c) => <span className="tabular-nums">{formatCtc(c.current_ctc_lpa)} → <strong className="text-[#061b3d]">{formatCtc(c.expected_ctc_lpa)}</strong></span>, className: 'whitespace-nowrap' },
     { header: 'Resume', cell: (c) => <FileButton target={fileTargetOf('candidate', c)} label="Resume" onOpen={setFileChoice} /> },
     { header: 'Status', cell: (c) => <StatusSelect value={c.status} options={CANDIDATE_STATUSES} onChange={(s) => void updateRecord('candidate', c.id, { status: s })} /> },
     { header: 'Submitted', cell: (c) => dateFormat.format(new Date(c.created_at)), className: 'whitespace-nowrap text-slate-500' },
@@ -606,6 +644,8 @@ export function AdminDashboard() {
     { header: 'Company', cell: (e) => <div><p className="font-semibold text-[#061b3d]">{e.company_name}</p><p className="text-xs text-slate-500">{e.contact_person} · {e.email}</p></div> },
     { header: 'Role', cell: (e) => <div><p className="text-slate-700">{e.role_title}</p><p className="text-xs text-slate-500">{e.target_location}</p></div> },
     { header: 'Sector', cell: (e) => e.sector, className: 'whitespace-nowrap' },
+    { header: 'Openings', cell: (e) => <span className="tabular-nums">{e.openings ?? '—'}</span>, className: 'whitespace-nowrap text-center' },
+    { header: 'Level', cell: (e) => e.level ?? '—', className: 'whitespace-nowrap' },
     { header: 'Urgency', cell: (e) => <span className={e.urgency === 'Immediate' ? 'font-semibold text-brand-600' : ''}>{e.urgency}</span>, className: 'whitespace-nowrap' },
     { header: 'JD', cell: (e) => (e.jd_file_id ? <FileButton target={fileTargetOf('employer', e)} label="JD" onOpen={setFileChoice} /> : <span className="text-xs text-slate-400">None</span>) },
     { header: 'Status', cell: (e) => <StatusSelect value={e.status} options={EMPLOYER_STATUSES} onChange={(s) => void updateRecord('employer', e.id, { status: s })} /> },
@@ -667,11 +707,31 @@ export function AdminDashboard() {
               </label>
               <div className="flex flex-wrap gap-2">
                 <FilterSelect label="Status" value={statusFilter} onChange={setStatusFilter} options={tab === 'candidate' ? CANDIDATE_STATUSES : EMPLOYER_STATUSES} />
-                {tab === 'candidate'
-                  ? <FilterSelect label="Experience" value={secondaryFilter} onChange={setSecondaryFilter} options={EXPERIENCE_OPTIONS} />
-                  : <FilterSelect label="Sector" value={secondaryFilter} onChange={setSecondaryFilter} options={SECTORS} />}
+                {tab === 'candidate' ? (
+                  <>
+                    <FilterSelect label="Experience" value={secondaryFilter} onChange={setSecondaryFilter} options={EXPERIENCE_OPTIONS} />
+                    <FilterSelect label="Notice" value={noticeFilter} onChange={setNoticeFilter} options={[NOTICE_FILTER_WITHIN_MONTH, ...NOTICE_PERIODS]} />
+                    <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-[#061b3d] focus-within:border-navy-500">
+                      <span className="whitespace-nowrap">Exp. CTC ₹</span>
+                      <input type="number" inputMode="decimal" min={0} step="any" value={ctcMin} onChange={(e) => setCtcMin(e.target.value)} placeholder="min" aria-label="Minimum expected CTC in lakh per annum" className="w-14 rounded-md bg-slate-50 px-1.5 py-1 text-center outline-none" />
+                      <span className="text-slate-400">–</span>
+                      <input type="number" inputMode="decimal" min={0} step="any" value={ctcMax} onChange={(e) => setCtcMax(e.target.value)} placeholder="max" aria-label="Maximum expected CTC in lakh per annum" className="w-14 rounded-md bg-slate-50 px-1.5 py-1 text-center outline-none" />
+                      <span className="text-slate-500">L</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <FilterSelect label="Sector" value={secondaryFilter} onChange={setSecondaryFilter} options={SECTORS} />
+                    <FilterSelect label="Level" value={levelFilter} onChange={setLevelFilter} options={LEVELS} />
+                  </>
+                )}
+                {filtersActive && (
+                  <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-[#061b3d]">
+                    <X className="size-4" /> Clear
+                  </button>
+                )}
                 <button type="button" onClick={exportCsv} disabled={loading} className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-brand-600 disabled:opacity-60">
-                  <Download className="size-4" /> Export CSV
+                  <Download className="size-4" /> Export CSV{filtersActive ? ' (filtered)' : ''}
                 </button>
               </div>
             </div>
