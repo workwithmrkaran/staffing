@@ -1,5 +1,5 @@
 import { withTransaction } from '@/lib/db'
-import { fail, isBot, ok, readMultipart } from '@/lib/http'
+import { fail, hasConsent, isBot, ok, readMultipart } from '@/lib/http'
 import { insertFile, UploadError, validateFile } from '@/lib/uploads'
 import { candidateSchema, firstIssue, formDataToObject } from '@/lib/validation'
 
@@ -9,6 +9,7 @@ export async function POST(request: Request) {
   const form = await readMultipart(request)
   if (!form) return fail('Invalid submission. Please use the form and keep files under 10MB.')
   if (isBot(form)) return ok('Thank you. Your profile has been received.')
+  if (!hasConsent(form)) return fail('Please accept the privacy consent to continue.')
 
   const parsed = candidateSchema.safeParse(formDataToObject(form))
   if (!parsed.success) return fail(firstIssue(parsed.error))

@@ -8,10 +8,23 @@ export const SITE = {
   phone: '+91 98963 33317',
   phoneHref: 'tel:+919896333317',
   email: 'a3astaffingsolutions@gmail.com',
-  logoUrl: 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/WhatsApp%20Image%202026-10-23%20at%208.14.08%20PM-dUhun3ZSYwxGwyg7RWRAai4aHngtF0.jpeg',
+  /** Small logo for the header/footer (served from /public). */
+  logoUrl: '/brand/a3a-logo-160.jpg',
+  /** Larger logo for Google (structured data) and other places that need a bigger image. */
+  logoLargeUrl: '/brand/a3a-logo-512.jpg',
+  founder: 'Pooja Khattar',
+  description: 'A3A Staffing Solutions helps startups, SMEs, and enterprises hire exceptional IT and Non-IT mid-level and leadership talent across India.',
   whatsappUrl: 'https://wa.me/919896333317?text=Hi%20A3A%20Staffing%2C%20I%20would%20like%20to%20discuss%20a%20hiring%20requirement.',
   linkedinUrl: 'https://linkedin.com/in/poojakh',
 } as const
+
+/**
+ * Search engines may only index the site once NEXT_PUBLIC_SITE_URL is a real https domain
+ * (e.g. https://a3astaffingsolutions.in). While it is unset, localhost or a bare IP address
+ * (testing on http://SERVER-IP:PORT), robots.txt blocks everything and every page says "noindex",
+ * so Google never lists the temporary address.
+ */
+export const INDEXABLE = /^https:\/\/(?!localhost\b)(?!\d+\.\d+\.\d+\.\d+)[^/]+$/i.test(SITE.url)
 
 /** Home page sections with their own clean address (/about, /contact …). Keep in sync with next.config.mjs. */
 export const SECTION_PATHS = ['about', 'services', 'industries', 'methodology', 'leadership', 'contact'] as const

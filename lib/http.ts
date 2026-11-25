@@ -24,6 +24,11 @@ export async function readMultipart(request: Request): Promise<FormData | null> 
   }
 }
 
+/** The privacy consent checkbox must be ticked. */
+export function hasConsent(form: FormData): boolean {
+  return form.get('consent') === 'yes'
+}
+
 /** Hidden "website" field: humans leave it empty, naive bots fill it in. */
 export function isBot(form: FormData): boolean {
   const trap = form.get('website')
